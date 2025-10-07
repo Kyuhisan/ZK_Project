@@ -1,0 +1,43 @@
+services:
+  mongo:
+    image: mongo:8.0
+    container_name: mongodb
+    volumes:
+      - mongo_data:/data/db
+    restart: always
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  backend:
+    image: matickuhar/smartsearch-backend:5.0
+    platform: linux/amd64
+    container_name: smartsearch-backend
+    volumes:
+      - ./output:/app/output
+      - shared_init:/app/mongo-init
+    ports:
+      - "8080:8080"
+    depends_on:
+      mongo:
+        condition: service_healthy
+    restart: always
+
+  mongo-seed:
+    image: mongo:8.0
+    depends_on:
+      backend:
+        condition: service_started
+      mongo:
+        condition: service_healthy
+    volumes:
+      - shared_init:/mongo-init
+    entrypoint: ["sh", "/mongo-init/init.sh"]
+    restart: "no"
+
+volumes:
+  mongo_data:
+  shared_init:

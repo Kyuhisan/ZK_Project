@@ -1,0 +1,11 @@
+version: "1.0"
+
+profile:
+  name: qodana.recommended
+
+bootstrap: npm install
+
+include:
+  - name: Eslint
+
+linter: jetbrains/qodana-js:2025.1

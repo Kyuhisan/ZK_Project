@@ -1,0 +1,30 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: smartsearch-backend-dev
+    volumes:
+      - .:/app   # Mount project directory into the container
+      - ./output:/app/output
+      - ~/.m2:/root/.m2   # Cache Maven dependencies
+    env_file:
+      - .env
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+    depends_on:
+      - mongo
+    command: ./mvnw spring-boot:run
+    restart: always
+
+  mongo:
+    image: mongo:8.0
+    container_name: mongodb-dev
+    volumes:
+      - mongo_data:/data/db
+    restart: always
+
+volumes:
+  mongo_data:

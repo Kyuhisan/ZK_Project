@@ -1,0 +1,25 @@
+Vagrant.configure("2") do |config|
+
+  config.vm.box = "gusztavvargadr/docker-linux"
+
+  config.vm.provider "hyperv" do |v|
+    v.cpus = 2
+    v.vmname = "dev23_vagrant_docker"
+    v.memory = 2048
+    v.maxmemory = 2048
+  end
+
+  config.vm.synced_folder "./Shared", "/home/vagrant/Shared"
+
+  config.vm.provision "shell", inline: <<-SHELL
+    # Update system packages
+    apt-get update
+
+    # Install docker-compose
+    apt-get install -y docker-compose
+
+    echo "=== Installation completed ==="
+    echo "Docker Compose version: $(docker-compose --version)"
+    echo "=== Ready to run docker-compose up -d ==="
+  SHELL
+end

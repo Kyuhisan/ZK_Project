@@ -1,0 +1,11 @@
+FROM maven:3.9-eclipse-temurin-21 AS dev
+
+WORKDIR /app
+
+# Copy entire project
+COPY . .
+
+# Pre-download dependencies to avoid re-downloading each time
+RUN ./mvnw dependency:go-offline
+
+EXPOSE 8080

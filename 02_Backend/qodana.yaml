@@ -1,0 +1,8 @@
+version: "1.0"
+
+projectJDK: "23"
+
+profile:
+  name: qodana.recommended
+
+linter: jetbrains/qodana-jvm:2025.1
