@@ -12,18 +12,18 @@ import org.springframework.data.mongodb.core.mapping.Document;
 public class FetchInterval {
     @Id
     private String id = "singelton";
-    private long shortIntervalHours;
-    private long longIntervalHours;
-    private long scrapingIntervalHours;
-    private int scrapingHourOfDay;
+    private long shortHours;
+    private long longHours;
+    private long scrapeHours;
+    private int timeOfScrape;
 
     public FetchInterval() {}
 
-    public FetchInterval(long shortIntervalHours,long longIntervalHours , long scrapingIntervalHours, int scrapingHourOfDay) {
-        this.shortIntervalHours = shortIntervalHours;
-        this.longIntervalHours = longIntervalHours;
-        this.scrapingIntervalHours = scrapingIntervalHours;
-        this.scrapingHourOfDay = scrapingHourOfDay;
+    public FetchInterval(long shortHours,long longHours , long scrapeHours, int timeOfScrape) {
+        this.shortHours = shortHours;
+        this.longHours = longHours;
+        this.scrapeHours = scrapeHours;
+        this.timeOfScrape = timeOfScrape;
     }
 
 }

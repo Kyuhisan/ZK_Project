@@ -7,8 +7,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import si.um.feri.__Backend.service.FetchIntervalService;
 import si.um.feri.__Backend.service.FetchLogService;
-import si.um.feri.__Backend.service.provider.cascadeFundingProvider;
-import si.um.feri.__Backend.service.provider.getOnePassProvider;
+import si.um.feri.__Backend.service.provider.cascadeProvider;
+import si.um.feri.__Backend.service.provider.onePassProvider;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -22,10 +22,10 @@ import java.util.concurrent.TimeUnit;
 @Component
 @RequiredArgsConstructor
 public class DynamicScraperScheduler {
-    private final FetchIntervalService fetchIntervalService;
+    private final FetchIntervalService intervalService;
     private final FetchLogService fetchLogService;
-    private final getOnePassProvider getOnePassProvider;
-    private final cascadeFundingProvider cascadeFundingProvider;
+    private final onePassProvider onepassProvider;
+    private final cascadeProvider cascadeProvider;
 
     private final ScheduledExecutorService scheduler =  Executors.newScheduledThreadPool(2);
     private ScheduledFuture<?> scrapingTask;
@@ -37,22 +37,22 @@ public class DynamicScraperScheduler {
     }
 
     public void scheduleTasks() {
-        int scrapingHour = fetchIntervalService.getScrapingHourOfDay();
+        int scrapingHour = intervalService.getScrapingHourOfDay();
         long initialDelay = computeInitialDelay(scrapingHour);
-        long interval = fetchIntervalService.getScrapingInterval().toSeconds();
+        long interval = intervalService.getScrapingInterval().toSeconds();
 
 
 
         scrapingTask = scheduler.scheduleWithFixedDelay(() -> {
             try {
-                cascadeFundingProvider.scrapeData();
+                cascadeProvider.scrapeData();
                 fetchLogService.logFetch("cascadeFunding", "All statuses");
             } catch (IOException e) {
                 log.error("Failed to scrape cascadeFunding data", e);
             }
 
             try {
-                getOnePassProvider.scrapeData();
+                onepassProvider.scrapeData();
                 fetchLogService.logFetch("getOnePass", "All statuses");
             } catch (IOException e) {
                 log.error("Failed to scrape getOnePass data", e);

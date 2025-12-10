@@ -24,13 +24,13 @@ public class DynamicEcEuropaSheduler {
 
     private static final Logger log = LoggerFactory.getLogger(DynamicEcEuropaSheduler.class);
 
-    private final FetchIntervalService fetchIntervalService;
+    private final FetchIntervalService intervalService;
     private final FetchLogService fetchLogService;
     private final ecEuropaProvider listingService;
 
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(3);
     private ScheduledFuture<?> openListing;
-    private ScheduledFuture<?> forthcomingListing;
+    private ScheduledFuture<?> forthListings;
     private ScheduledFuture<?> closedListing;
 
     @PostConstruct
@@ -39,9 +39,9 @@ public class DynamicEcEuropaSheduler {
     }
 
     private void scheduleTasks() {
-        Duration shortInterval = fetchIntervalService.getShortInterval();
-        Duration longInterval = fetchIntervalService.getLongInterval();
-        int scrapingHour = fetchIntervalService.getScrapingHourOfDay();
+        Duration shortInterval = intervalService.getShortInterval();
+        Duration longInterval = intervalService.getLongInterval();
+        int scrapingHour = intervalService.getScrapingHourOfDay();
         long initialDelayShort = computeInitialDelay(scrapingHour);
         long initialDelayLong = initialDelayShort;
 
@@ -54,7 +54,7 @@ public class DynamicEcEuropaSheduler {
             }
         }, initialDelayShort, shortInterval.toSeconds(), TimeUnit.SECONDS);
 
-        forthcomingListing = scheduler.scheduleWithFixedDelay(() -> {
+        forthListings = scheduler.scheduleWithFixedDelay(() -> {
             try {
                 listingService.fetchListings("queryForthcoming.json");
                 fetchLogService.logFetch("ecEuropa", "Forthcoming");
@@ -78,7 +78,7 @@ public class DynamicEcEuropaSheduler {
 
     public void rescheduleTasks() {
         if (openListing != null) openListing.cancel(false);
-        if (forthcomingListing != null) forthcomingListing.cancel(false);
+        if (forthListings != null) forthListings.cancel(false);
         if (closedListing != null) closedListing.cancel(false);
 
         scheduleTasks();

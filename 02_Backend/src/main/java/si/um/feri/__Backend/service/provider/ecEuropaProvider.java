@@ -93,11 +93,15 @@ public class ecEuropaProvider {
             saveFilteredToMongo(pageResults);
 
             // log and continue
-            log.info("Fetched page {} with {} listings", page, results.size());
+            if (log.isInfoEnabled()) {
+                log.info("Fetched page {} with {} listings", page, results.size());
+            }
             page++;
         }
         generateKeywordsFromMongo();
-        log.info("Finished fetching listings from ec.europa.eu");
+        if (log.isInfoEnabled()) {
+            log.info("Finished fetching listings from ec.europa.eu");
+        }
     }
 
     public void saveRawToMongo(String pageJson, String provider) throws IOException {
@@ -112,7 +116,9 @@ public class ecEuropaProvider {
         }
         if (!documents.isEmpty()) {
             mongoTemplate.getCollection("Listings-Raw(ec.europa.eu)").insertMany(documents);
-            log.info("Inserted {} raw documents into MongoDB for provider: {}", documents.size(), provider);
+            if (log.isInfoEnabled()) {
+                log.info("Inserted {} raw documents into MongoDB for provider: {}", documents.size(), provider);
+            }
         }
     }
 
@@ -127,7 +133,7 @@ public class ecEuropaProvider {
 
     private void saveFilteredToMongo(List<JsonNode> items) throws IOException {
         List<Listing> listingsToSave = new ArrayList<>();
-        Set<String> identifiersToCheck = new HashSet<>();
+        Set<String> IDStoCheck = new HashSet<>();
         Map<String, JsonNode> nodesBySourceId = new HashMap<>();
 
         for (JsonNode itemNode : items) {
@@ -136,24 +142,26 @@ public class ecEuropaProvider {
             String id = first(m.getIdentifier());
             String status = mapStatus(first(m.getStatus()));
             String sourceId = "ec.europa.eu:" + id + ":" + status;
-            identifiersToCheck.add(sourceId);
+            IDStoCheck.add(sourceId);
             nodesBySourceId.put(sourceId, itemNode);
         }
 
-        Set<String> existingIds = listingRepository.findAllBySourceIdentifierIn(identifiersToCheck)
+        Set<String> existingIds = listingRepository.findAllBySourceIdentifierIn(IDStoCheck)
                 .stream()
                 .map(Listing::getSourceIdentifier)
                 .collect(Collectors.toSet());
 
         AtomicInteger counter = new AtomicInteger(0);
-        int total = identifiersToCheck.size();
+        int total = IDStoCheck.size();
 
         for (Map.Entry<String, JsonNode> entry : nodesBySourceId.entrySet()) {
             String sourceId = entry.getKey();
             int current = counter.incrementAndGet();
 
             if (existingIds.contains(sourceId)) {
-                log.warn("[{}/{}] Skipping duplicate: {}", current, total, sourceId);
+                if (log.isWarnEnabled()) {
+                    log.warn("[{}/{}] Skipping duplicate: {}", current, total, sourceId);
+                }
                 continue;
             }
 
@@ -161,7 +169,9 @@ public class ecEuropaProvider {
             ecEuropaRaw.Metadata m = raw.getMetadata();
 
             if (!Objects.equals(first(m.getDeadlineModel()), "single-stage")) {
-                log.debug("[{}/{}] Skipping multi-stage deadline model: {}", current, total, first(m.getIdentifier()));
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}/{}] Skipping multi-stage deadline model: {}", current, total, first(m.getIdentifier()));
+                }
                 continue;
             }
 
@@ -178,7 +188,7 @@ public class ecEuropaProvider {
             listing.setSummary(description);
             listing.setDescription(description);
             listing.setKeywords(m.getTags());
-            listing.setIndustries(m.getCrossCuttingPriorities());
+            listing.setIndustries(m.getPriorities());
 
             Optional.ofNullable(m.getTypesOfAction())
                     .ifPresent(list -> listing.setTechnologies(
@@ -194,10 +204,14 @@ public class ecEuropaProvider {
                 listing.setBudget(parseBudgetFromOverview(m.getBudgetOverview(), identifier));
             }
             listingsToSave.add(listing);
-            log.info("[{}/{}] Processed listing: {}", current, total, sourceId);
+            if (log.isInfoEnabled()) {
+                log.info("[{}/{}] Processed listing: {}", current, total, sourceId);
+            }
         }
         listingRepository.saveAll(listingsToSave);
-        log.info("Saved {} filtered listings to MongoDB", listingsToSave.size());
+        if (log.isInfoEnabled()) {
+            log.info("Saved {} filtered listings to MongoDB", listingsToSave.size());
+        }
     }
 
     private String mapStatus(String code) {
@@ -290,7 +304,9 @@ public class ecEuropaProvider {
         Files.createDirectories(path.getParent());
         Files.write(path, sorted, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
 
-        log.info("Saved {} keywords to file: {}", sorted.size(), path);
+        if (log.isInfoEnabled()) {
+            log.info("Saved {} keywords to file: {}", sorted.size(), path);
+        }
     }
 
     public void generateKeywordsFromMongo() throws IOException {

@@ -7,6 +7,8 @@ import si.um.feri.__Backend.model.ApiKeySettings;
 import si.um.feri.__Backend.repository.ApiKeyRepository;
 import si.um.feri.__Backend.util.EncryptionUtils;
 
+import java.security.GeneralSecurityException;
+
 @Service
 @RequiredArgsConstructor
 public class ApiKeyService {
@@ -21,13 +23,13 @@ public class ApiKeyService {
 
     public String getCurrentApiKey() {
         return apiKeyRepository.findById("singleton").map( setting -> {
-                    try {
-                        return EncryptionUtils.decrypt(setting.getEncryptedApiKey(), encryptionSecret);
-                    } catch (Exception e) {
-                        throw new RuntimeException("Decryption failed", e);
-                    }
-                })
-                .orElse(defaultKey);
+            try {
+                return EncryptionUtils.decrypt(setting.getEncryptedApiKey(), encryptionSecret);
+            } catch (GeneralSecurityException e) {
+                throw new RuntimeException("Decryption failed", e);
+            }
+        })
+        .orElse(defaultKey);
     }
 
     public void updateApiKey(String plainApiKey){
@@ -36,7 +38,7 @@ public class ApiKeyService {
             ApiKeySettings setting = new ApiKeySettings();
             setting.setEncryptedApiKey(encrypted);
             apiKeyRepository.save(setting);
-        } catch (Exception e) {
+        } catch (GeneralSecurityException e) {
             throw new RuntimeException("Encryption failed",e);
         }
     }

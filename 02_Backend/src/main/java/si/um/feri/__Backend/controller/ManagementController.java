@@ -11,9 +11,9 @@ import si.um.feri.__Backend.scheduler.DynamicScraperScheduler;
 import si.um.feri.__Backend.service.ApiKeyService;
 import si.um.feri.__Backend.service.FetchIntervalService;
 import si.um.feri.__Backend.service.FetchLogService;
-import si.um.feri.__Backend.service.provider.cascadeFundingProvider;
+import si.um.feri.__Backend.service.provider.cascadeProvider;
 import si.um.feri.__Backend.service.provider.ecEuropaProvider;
-import si.um.feri.__Backend.service.provider.getOnePassProvider;
+import si.um.feri.__Backend.service.provider.onePassProvider;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -25,17 +25,16 @@ import java.util.Map;
 @CrossOrigin
 @RequiredArgsConstructor
 public class ManagementController {
-    private final FetchLogRepository fetchLogRepository;
-    private final ListingRepository  listingRepository;
-    private final ecEuropaProvider ecEuropaProvider;
-    private final FetchLogService fetchLogService;
-    private final FetchIntervalService fetchIntervalService;
-    private final DynamicEcEuropaSheduler dynamicEcEuropaSheduler;
+    private final FetchLogRepository logRepository;
+    private final ListingRepository listingRepository;
+    private final ecEuropaProvider europaProvider;
+    private final FetchLogService logService;
+    private final FetchIntervalService intervalService;
+    private final DynamicEcEuropaSheduler europaScheduler;
     private final ApiKeyService apiKeyService;
-    private final cascadeFundingProvider cascadeFundingProvider;
-    private final getOnePassProvider getOnePassProvider;
-    private final DynamicScraperScheduler dynamicScraperScheduler;
-
+    private final cascadeProvider cascadeProvider;
+    private final onePassProvider onepassProvider;
+    private final DynamicScraperScheduler scraperScheduler;
 
     @GetMapping("/status")
     public ResponseEntity<?> getStatus() {
@@ -47,9 +46,9 @@ public class ManagementController {
         response.put("closedCount", listingRepository.countByStatusIgnoreCase("Closed"));
         response.put("forthcomingCount", listingRepository.countByStatusIgnoreCase("Forthcoming"));
 
-        response.put("fetchLogs", fetchLogRepository.findTop20ByOrderByTimeOfFetchDesc());
+        response.put("fetchLogs", logRepository.findTop20ByOrderByTimeOfFetchDesc());
 
-        FetchLog lastLog = fetchLogRepository.findTop1BySourceOrderByTimeOfFetchDesc("ecEuropa");
+        FetchLog lastLog = logRepository.findTop1BySourceOrderByTimeOfFetchDesc("ecEuropa");
         if (lastLog != null) {
             LocalDateTime nextAllowed = lastLog.getTimeOfFetch().plusHours(6);
             response.put("nextAllowedScrapeTime", nextAllowed.toString()); // ISO format
@@ -59,7 +58,7 @@ public class ManagementController {
     }
     @PostMapping("/geather-now")
     public ResponseEntity<?> manualScrape() {
-        FetchLog lastLog = fetchLogRepository.findTop1BySourceOrderByTimeOfFetchDesc("ecEuropa");
+        FetchLog lastLog = logRepository.findTop1BySourceOrderByTimeOfFetchDesc("ecEuropa");
 
         if (lastLog != null) {
             LocalDateTime now = LocalDateTime.now();
@@ -76,14 +75,14 @@ public class ManagementController {
 
 //        Map<String, Object> result = new HashMap<>();
         try {
-            ecEuropaProvider.fetchListings("queryOpen.json");
-            fetchLogService.logFetch("ecEuropa", "Open");
+            europaProvider.fetchListings("queryOpen.json");
+            logService.logFetch("ecEuropa", "Open");
 
-            ecEuropaProvider.fetchListings("queryForthcoming.json");
-            fetchLogService.logFetch("ecEuropa", "Forthcoming");
+            europaProvider.fetchListings("queryForthcoming.json");
+            logService.logFetch("ecEuropa", "Forthcoming");
 
-            ecEuropaProvider.fetchListings("queryClosed.json");
-            fetchLogService.logFetch("ecEuropa", "Closed");
+            europaProvider.fetchListings("queryClosed.json");
+            logService.logFetch("ecEuropa", "Closed");
 
 //            result.put("ecEuropa", "✅ OK");
         } catch (IOException e) {
@@ -91,16 +90,16 @@ public class ManagementController {
         }
 
         try {
-            cascadeFundingProvider.scrapeData();
-            fetchLogService.logFetch("cascadeFunding", "All statuses");
+            cascadeProvider.scrapeData();
+            logService.logFetch("cascadeFunding", "All statuses");
 //            result.put("cascadeFunding", "✅ OK");
         } catch (IOException e) {
 //            result.put("cascadeFunding", "❌ " + e.getMessage());
         }
 
         try {
-            getOnePassProvider.scrapeData();
-            fetchLogService.logFetch("getOnePass", "All statuses");
+            onepassProvider.scrapeData();
+            logService.logFetch("getOnePass", "All statuses");
 //            result.put("getOnePass", "✅ OK");
         } catch (IOException e) {
 //            result.put("getOnePass", "❌ " + e.getMessage());
@@ -122,9 +121,9 @@ public class ManagementController {
         }
 
 
-        fetchIntervalService.updateSettings(shortHours, longHours, scrapingHours, scrapingHourOfDay);
-        dynamicEcEuropaSheduler.rescheduleTasks();
-        dynamicScraperScheduler.rescheduleTasks();
+        intervalService.updateSettings(shortHours, longHours, scrapingHours, scrapingHourOfDay);
+        europaScheduler.rescheduleTasks();
+        scraperScheduler.rescheduleTasks();
         return ResponseEntity.ok("OK, intervals updated.");
     }
     @PostMapping("/set-api-key")

@@ -9,37 +9,36 @@ import java.time.Duration;
 @Service
 @RequiredArgsConstructor
 public class FetchIntervalService {
-
-    private final FetchIntervalRepository fetchIntervalRepository;
+    private final FetchIntervalRepository intervalRepos;
 
     public FetchInterval getInterval () {
-        return  fetchIntervalRepository.findById("singelton").orElseGet(()->{
+        return  intervalRepos.findById("singelton").orElseGet(()->{
             FetchInterval fetchInterval = new FetchInterval(24,72,48,3);
-            fetchIntervalRepository.save(fetchInterval);
+            intervalRepos.save(fetchInterval);
             return fetchInterval;
         });
     }
 
     public void updateSettings(long shortHours,long longHours , long scrapingHours, int scrapingHourOfDay) {
         FetchInterval fetchInterval = getInterval();
-        fetchInterval.setShortIntervalHours(shortHours);
-        fetchInterval.setLongIntervalHours(longHours);
-        fetchInterval.setScrapingIntervalHours(scrapingHours);
-        fetchInterval.setScrapingHourOfDay(scrapingHourOfDay);
-        fetchIntervalRepository.save(fetchInterval);
+        fetchInterval.setShortHours(shortHours);
+        fetchInterval.setLongHours(longHours);
+        fetchInterval.setScrapeHours(scrapingHours);
+        fetchInterval.setTimeOfScrape(scrapingHourOfDay);
+        intervalRepos.save(fetchInterval);
     }
 
     public Duration getShortInterval() {
-        return Duration.ofHours(getInterval().getShortIntervalHours());
+        return Duration.ofHours(getInterval().getShortHours());
     }
 
     public Duration getLongInterval() {
-        return Duration.ofHours(getInterval().getLongIntervalHours());
+        return Duration.ofHours(getInterval().getLongHours());
     }
 
-    public Duration getScrapingInterval() {return Duration.ofHours(getInterval().getScrapingIntervalHours());}
+    public Duration getScrapingInterval() {return Duration.ofHours(getInterval().getScrapeHours());}
 
     public int getScrapingHourOfDay() {
-        return getInterval().getScrapingHourOfDay();
+        return getInterval().getTimeOfScrape();
     }
 }

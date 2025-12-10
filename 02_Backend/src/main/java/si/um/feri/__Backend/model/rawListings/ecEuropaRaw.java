@@ -21,7 +21,7 @@ public class ecEuropaRaw {
         private List<String> startDate;
         private List<String> deadlineModel;
         private List<String> descriptionByte;           //  summary
-        private List<String> crossCuttingPriorities;    //  technologies
+        private List<String> priorities;                //  technologies
         private List<String> tags;                      //  keywords
         private List<String> typesOfAction;             //  industries
     }

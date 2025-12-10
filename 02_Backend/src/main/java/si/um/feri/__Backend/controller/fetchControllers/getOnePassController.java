@@ -4,22 +4,22 @@ import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import si.um.feri.__Backend.service.provider.getOnePassProvider;
+import si.um.feri.__Backend.service.provider.onePassProvider;
 import java.io.IOException;
 
 @RestController
 @RequestMapping("/api/listings/getOnePass")
 @CrossOrigin
 public class getOnePassController {
-    private final getOnePassProvider getOnePassProvider;
+    private final onePassProvider onepassProvider;
 
-    public getOnePassController(getOnePassProvider getOnePassProvider) {
-        this.getOnePassProvider = getOnePassProvider;
+    public getOnePassController(onePassProvider onePassProvider) {
+        this.onepassProvider = onePassProvider;
     }
 
     @GetMapping("/scrape/all")
     public String scrapeAllListings() throws IOException {
-        getOnePassProvider.scrapeData();
+        onepassProvider.scrapeData();
         return "GetOnePass data scraped and saved to MongoDB.";
     }
 }

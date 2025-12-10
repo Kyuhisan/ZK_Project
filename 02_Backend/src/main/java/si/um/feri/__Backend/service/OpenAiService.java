@@ -58,10 +58,10 @@ public class OpenAiService {
     private String keywordsPath;
 
     public Mono<String> extractKeywords(String userInput) {
-        String formattedKeywordList;
+        String keywordListForm;
         try {
             String baseDir = System.getProperty("user.dir") + keywordsPath;
-            formattedKeywordList = loadAllKeywordsFromFiles(List.of(
+            keywordListForm = loadAllKeywordsFromFiles(List.of(
                     baseDir + "cascadeFunding/keywords.txt",
                     baseDir + "getOnePass/keywords.txt",
                     baseDir + "generic/keywords.txt",
@@ -86,7 +86,7 @@ public class OpenAiService {
         ["keyword1", "keyword2", ..., "keywordN"]
 
         Available Keywords:
-        """ + formattedKeywordList + "\n\nUser Input:\n" + userInput;
+        """ + keywordListForm + "\n\nUser Input:\n" + userInput;
 
         Map<String, Object> requestBody = buildRequestBody(prompt);
 
@@ -107,7 +107,9 @@ public class OpenAiService {
                         Object messageObj = ((Map<?, ?>) choices.get(0)).get("message");
                         if (messageObj instanceof Map<?, ?> messageMap) {
                             Object content = messageMap.get("content");
-                            if (content != null) return content.toString().trim();
+                            if (content != null) {
+                                return content.toString().trim();
+                            }
                         }
                     }
                     return "[]";

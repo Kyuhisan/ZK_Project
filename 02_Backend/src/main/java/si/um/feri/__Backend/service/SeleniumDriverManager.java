@@ -1,6 +1,7 @@
 package si.um.feri.__Backend.service;
 
 import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.slf4j.Logger;
@@ -25,9 +26,14 @@ public class SeleniumDriverManager {
 
         if (isRunningInDocker()) {
             System.setProperty("SE_FORCE_BROWSER_DOWNLOAD", "true");
-            log.info("Docker environment detected - forcing browser download");
+            if (log.isInfoEnabled()) {
+                log.info("Docker environment detected - forcing browser download");
+            }
         }
-        log.info("Selenium Manager configured with cache path: {}", System.getProperty("SE_CACHE_PATH"));
+
+        if (log.isInfoEnabled()) {
+            log.info("Selenium Manager configured with cache path: {}", System.getProperty("SE_CACHE_PATH"));
+        }
     }
 
     private boolean isRunningInDocker() {
@@ -90,8 +96,10 @@ public class SeleniumDriverManager {
         if (driver != null) {
             try {
                 driver.quit();
-            } catch (Exception e) {
-                log.warn("Error during driver shutdown: {}", e.getMessage());
+            } catch (WebDriverException e) {
+                if (log.isWarnEnabled()) {
+                    log.warn("Error during driver shutdown: {}", e.getMessage());
+                }
             }
         }
     }
@@ -103,16 +111,20 @@ public class SeleniumDriverManager {
                 driver.quit();
             }
             threadLocalDriver.remove();
-        } catch (Exception e) {
-            log.warn("Error cleaning up ThreadLocal drivers: {}", e.getMessage());
+        } catch (WebDriverException e) {
+            if (log.isWarnEnabled()) {
+                log.warn("Error cleaning up ThreadLocal drivers: {}", e.getMessage());
+            }
         }
     }
 
     public void clearBrowserState(WebDriver driver) {
         try {
             driver.manage().deleteAllCookies();
-        } catch (Exception e) {
-            log.warn("Error clearing browser state: {}", e.getMessage());
+        } catch (WebDriverException e) {
+            if (log.isWarnEnabled()) {
+                log.warn("Error clearing browser state: {}", e.getMessage());
+            }
         }
     }
 }
