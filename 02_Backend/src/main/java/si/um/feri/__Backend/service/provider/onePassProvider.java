@@ -6,6 +6,7 @@ import jakarta.annotation.PreDestroy;
 import org.bson.Document;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
@@ -28,12 +29,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 @Service
-public class getOnePassProvider {
-    private static final Logger log = LoggerFactory.getLogger(getOnePassProvider.class);
+public class onePassProvider {
+    private static final Logger log = LoggerFactory.getLogger(onePassProvider.class);
     private static final String COLLECTION_RAW = "Listings-Raw(getonepass.eu)";
     private static final String SOURCE = "getonepass.eu";
     private static final String STATUS_OPEN = "Open";
-    private static final String STATUS_FORTHCOMING = "Forthcoming";
+    private static final String STATUS_FORTH = "Forthcoming";
     private static final String STATUS_UNKNOWN = "Unknown";
     private final ListingRepository listingRepository;
     private final WebDriver driver;
@@ -41,13 +42,16 @@ public class getOnePassProvider {
     private final ThreadLocal<WebDriver> threadLocalDriver;
     private final SeleniumDriverManager driverManager;
 
-    public getOnePassProvider(ListingRepository listingRepository, MongoTemplate mongoTemplate, SeleniumDriverManager driverManager) {
+    public onePassProvider(ListingRepository listingRepository, MongoTemplate mongoTemplate, SeleniumDriverManager driverManager) {
         this.listingRepository = listingRepository;
         this.mongoTemplate = mongoTemplate;
         this.driverManager = driverManager;
         this.driver = driverManager.createChromeDriver();
         this.threadLocalDriver = driverManager.createThreadLocalDriver();
-        log.info("Chrome driver initialized with Selenium Manager");
+
+        if (log.isInfoEnabled()) {
+            log.info("Chrome driver initialized with Selenium Manager");
+        }
     }
 
     public synchronized void scrapeData() throws IOException {
@@ -68,14 +72,20 @@ public class getOnePassProvider {
         while (true) {
             String pageUrl = "https://hub.getonepass.eu/search/opportunities?page=" + currentPage;
             driver.get(pageUrl);
-            log.info("Processing page: {}", currentPage);
+
+            if (log.isInfoEnabled()) {
+                log.info("Processing page: {}", currentPage);
+            }
 
             try {
                 wait.until(ExpectedConditions.presenceOfElementLocated(By.cssSelector("div.discoveryCard")));
                 List<WebElement> cards = driver.findElements(By.cssSelector("div.discoveryCard"));
 
                 if (cards.isEmpty()) {
-                    log.info("No cards found on page {}, stopping pagination", currentPage);
+                    if (log.isInfoEnabled()) {
+                        log.info("No cards found on page {}, stopping pagination", currentPage);
+                    }
+
                     break;
                 }
 
@@ -83,15 +93,22 @@ public class getOnePassProvider {
                     try {
                         Map<String, Object> data = processCard(card, globalCounter++);
                         results.add(data);
-                        log.info("Processed card: {}", data.get("id"));
-                    } catch (Exception e) {
-                        log.warn("Error processing card {} on page {}: {}", globalCounter, currentPage, e.getMessage());
+
+                        if (log.isInfoEnabled()) {
+                            log.info("Processed card: {}", data.get("id"));
+                        }
+                    } catch (WebDriverException e) {
+                        if (log.isWarnEnabled()) {
+                            log.warn("Error processing card {} on page {}: {}", globalCounter, currentPage, e.getMessage());
+                        }
                         globalCounter++;
                     }
                 }
                 currentPage++;
-            } catch (Exception e) {
-                log.warn("Error processing page {}: {}", currentPage, e.getMessage());
+            } catch (WebDriverException e) {
+                if (log.isWarnEnabled()) {
+                    log.warn("Error processing page {}: {}", currentPage, e.getMessage());
+                }
                 break;
             }
         }
@@ -111,15 +128,17 @@ public class getOnePassProvider {
             if (link != null) {
                 data.put("url", link.startsWith("http") ? link : "https://hub.getonepass.eu" + link);
             }
-        } catch (Exception e) {
-            log.warn("Error extracting title/URL for {}: {}", formattedId, e.getMessage());
+        } catch (WebDriverException e) {
+            if (log.isWarnEnabled()) {
+                log.warn("Error extracting title/URL for {}: {}", formattedId, e.getMessage());
+            }
         }
 
         try {
             card.findElements(By.xpath(".//p")).stream()
                     .findFirst()
                     .ifPresent(p -> data.put("summary", p.getText().trim()));
-        } catch (Exception ignored) {}
+        } catch (NoSuchElementException ignored) {}
 
         try {
             List<String> industries = card.findElements(By.cssSelector("div.tags a.industrieTag")).stream()
@@ -127,7 +146,7 @@ public class getOnePassProvider {
                     .map(String::trim)
                     .collect(Collectors.toList());
             data.put("industry", industries);
-        } catch (Exception ignored) {
+        } catch (NoSuchElementException ignored) {
             data.put("industry", new ArrayList<>());
         }
 
@@ -141,7 +160,7 @@ public class getOnePassProvider {
                             data.put("status", parts[0].trim());
                         }
                     });
-        } catch (Exception ignored) {}
+        } catch (NoSuchElementException ignored) {}
 
         return data;
     }
@@ -167,17 +186,26 @@ public class getOnePassProvider {
                     try {
                         // Acquire permit before loading page
                         if (!pageLoadSemaphore.tryAcquire(30, TimeUnit.SECONDS)) {
-                            log.warn("[{}/{}] Timeout waiting for resources: {}", index, total, id);
+                            if (log.isWarnEnabled()) {
+                                log.warn("[{}/{}] Timeout waiting for resources: {}", index, total, id);
+                            }
                             failureCount.incrementAndGet();
                             return;
                         }
 
-                        log.info("[{}/{}] Fetching details for: {}", index, total, id);
+                        if (log.isInfoEnabled()) {
+                            log.info("[{}/{}] Fetching details for: {}", index, total, id);
+                        }
+
                         fetchDetailsWithRetry(item); // 3 retry attempts
                         successCount.incrementAndGet();
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
-                        log.warn("[{}/{}] Interrupted while processing: {}", index, total, id);
+
+                        if (log.isWarnEnabled()) {
+                            log.warn("[{}/{}] Interrupted while processing: {}", index, total, id);
+                        }
+
                         failureCount.incrementAndGet();
                     } finally {
                         pageLoadSemaphore.release();
@@ -188,7 +216,9 @@ public class getOnePassProvider {
         CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
         executor.shutdown();
 
-        log.info("Detail scraping complete. Success: {}, Failures: {}, Total: {}", successCount.get(), failureCount.get(), total);
+        if (log.isInfoEnabled()) {
+            log.info("Detail scraping complete. Success: {}, Failures: {}, Total: {}", successCount.get(), failureCount.get(), total);
+        }
     }
 
     private void fetchDetailsWithRetry(Map<String, Object> item) {
@@ -197,14 +227,18 @@ public class getOnePassProvider {
             try {
                 fetchDetails(item);
                 return;
-            } catch (Exception e) {
+            } catch (WebDriverException e) {
                 if (attempt == maxRetries) {
-                    log.warn("Final attempt failed for {}: {}", item.get("id"), e.getMessage());
+                    if (log.isWarnEnabled()) {
+                        log.warn("Final attempt failed for {}: {}", item.get("id"), e.getMessage());
+                    }
                     item.put("deadlineDate", STATUS_UNKNOWN);
                     item.put("description", "none");
                     item.put("technology", new ArrayList<>());
                 } else {
-                    log.debug("Retry attempt {}/{} for {}: {}", attempt, maxRetries, item.get("id"), e.getMessage());
+                    if (log.isDebugEnabled()) {
+                        log.debug("Retry attempt {}/{} for {}: {}", attempt, maxRetries, item.get("id"), e.getMessage());
+                    }
                     try {
                         Thread.sleep(2000L * attempt);
                     } catch (InterruptedException ie) {
@@ -234,7 +268,7 @@ public class getOnePassProvider {
                         ExpectedConditions.presenceOfElementLocated(
                                 By.cssSelector("div.ui.eleven.wide.column"))
                 ));
-            } catch (Exception ignored) {}
+            } catch (NoSuchElementException ignored) {}
 
             try {
                 driver.findElements(By.cssSelector("div.ui.big.horizontal.divided.menu > .item")).stream()
@@ -242,7 +276,7 @@ public class getOnePassProvider {
                             try {
                                 return menuItem.findElement(By.cssSelector(".header")).getText().trim()
                                         .equalsIgnoreCase("Apply before");
-                            } catch (Exception e) {
+                            } catch (WebDriverException e) {
                                 return false;
                             }
                         })
@@ -251,7 +285,7 @@ public class getOnePassProvider {
                             String text = menuItem.getText().replace("Apply before", "").trim();
                             item.put("deadlineDate", text);
                         });
-            } catch (Exception ignored) {}
+            } catch (NoSuchElementException ignored) {}
 
             if (!item.containsKey("deadlineDate")) {
                 item.put("deadlineDate", STATUS_UNKNOWN);
@@ -261,14 +295,14 @@ public class getOnePassProvider {
                 WebElement descEl = driver.findElement(By.cssSelector("div.ui.eleven.wide.column"));
                 String description = preserveFormattingWithH3Headers(driver, descEl);
                 item.put("description", description);
-            } catch (Exception e) {
+            } catch (WebDriverException e) {
                 item.put("description", "none");
             }
 
             try {
                 List<String> technologies = driver.findElements(By.cssSelector("div.meta.search-engine-technologies a.ui.label")).stream().map(WebElement::getText).map(String::trim).collect(Collectors.toList());
                 item.put("technology", technologies);
-            } catch (Exception e) {
+            } catch (WebDriverException e) {
                 item.put("technology", new ArrayList<>());
             }
 
@@ -309,8 +343,10 @@ public class getOnePassProvider {
                     .replaceAll(" \\n", "\n")                 // Remove spaces before newlines
                     .trim();
 
-        } catch (Exception e) {
-            log.warn("Failed to extract formatted HTML, falling back to getText(): {}", e.getMessage());
+        } catch (WebDriverException e) {
+            if (log.isWarnEnabled()) {
+                log.warn("Failed to extract formatted HTML, falling back to getText(): {}", e.getMessage());
+            }
             return element.getText().trim();
         }
     }
@@ -323,7 +359,10 @@ public class getOnePassProvider {
         try (FileWriter writer = new FileWriter(outputPath)) {
             writer.write(mapper.writeValueAsString(dataList));
         }
-        log.info("Saved scraped data to: {}", outputPath);
+
+        if (log.isInfoEnabled()) {
+            log.info("Saved scraped data to: {}", outputPath);
+        }
     }
 
     public void saveRawToMongo(List<Map<String, Object>> results, String provider) {
@@ -337,7 +376,9 @@ public class getOnePassProvider {
         if (!documents.isEmpty()) {
             mongoTemplate.getCollection(COLLECTION_RAW).insertMany(documents);
         }
-        log.info("Saved {} raw items to MongoDB for provider: {}", documents.size(), provider);
+        if (log.isInfoEnabled()) {
+            log.info("Saved {} raw items to MongoDB for provider: {}", documents.size(), provider);
+        }
     }
 
     private void saveFilteredToMongo(List<Map<String, Object>> results) {
@@ -351,7 +392,7 @@ public class getOnePassProvider {
                 .filter(Objects::nonNull)
                 .toList();
 
-        Set<String> existingIdentifiers = new HashSet<>(listingRepository.findAllBySourceIdentifierIn(allPossibleIds)
+        Set<String> existingIDS = new HashSet<>(listingRepository.findAllBySourceIdentifierIn(allPossibleIds)
                 .stream()
                 .map(Listing::getSourceIdentifier)
                 .toList());
@@ -363,8 +404,10 @@ public class getOnePassProvider {
             String status = normalizeStatus((String) data.get("status"));
             String sourceIdentifier = SOURCE + ":" + identifier + ":" + status;
 
-            if (existingIdentifiers.contains(sourceIdentifier)) {
-                log.warn("Duplicate listing found: {}", sourceIdentifier);
+            if (existingIDS.contains(sourceIdentifier)) {
+                if (log.isWarnEnabled()) {
+                    log.warn("Duplicate listing found: {}", sourceIdentifier);
+                }
                 continue;
             }
 
@@ -395,14 +438,16 @@ public class getOnePassProvider {
             listings.add(listing);
         }
         listingRepository.saveAll(listings);
-        log.info("Saved {} filtered listings to MongoDB.", listings.size());
+        if (log.isInfoEnabled()) {
+            log.info("Saved {} filtered listings to MongoDB.", listings.size());
+        }
     }
 
     private String normalizeStatus(String status) {
         if (status == null) return STATUS_UNKNOWN;
         return switch (status) {
             case "Open for applications", "Always open" -> STATUS_OPEN;
-            case "Coming soon" -> STATUS_FORTHCOMING;
+            case "Coming soon" -> STATUS_FORTH;
             default -> status.isEmpty() ? STATUS_UNKNOWN : status;
         };
     }
@@ -439,7 +484,9 @@ public class getOnePassProvider {
         Collections.sort(sortedKeywords);
         Files.write(path, sortedKeywords);
 
-        log.info("Saved {} keywords to: {}", sortedKeywords.size(), filePath);
+        if (log.isInfoEnabled()) {
+            log.info("Saved {} keywords to: {}", sortedKeywords.size(), filePath);
+        }
     }
 
     @PreDestroy

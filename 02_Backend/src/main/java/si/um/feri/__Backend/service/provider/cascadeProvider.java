@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import org.bson.Document;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
@@ -26,8 +27,8 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
-public class cascadeFundingProvider {
-    private static final Logger log = LoggerFactory.getLogger(cascadeFundingProvider.class);
+public class cascadeProvider {
+    private static final Logger log = LoggerFactory.getLogger(cascadeProvider.class);
     private static final String COLLECTION_RAW = "Listings-Raw(cascadefunding.eu)";
     private static final String SOURCE = "cascadefunding.eu";
     private static final String STATUS_OPEN = "Open";
@@ -36,12 +37,14 @@ public class cascadeFundingProvider {
     private final MongoTemplate mongoTemplate;
     private final SeleniumDriverManager driverManager;
 
-    public cascadeFundingProvider(ListingRepository listingRepository, MongoTemplate mongoTemplate, SeleniumDriverManager driverManager) throws IOException {
+    public cascadeProvider(ListingRepository listingRepository, MongoTemplate mongoTemplate, SeleniumDriverManager driverManager) throws IOException {
         this.listingRepository = listingRepository;
         this.mongoTemplate = mongoTemplate;
         this.driverManager = driverManager;
         this.driver = driverManager.createChromeDriver();
-        log.info("Chrome driver initialized with Selenium Manager");
+        if (log.isInfoEnabled()) {
+            log.info("Chrome driver initialized with Selenium Manager");
+        }
     }
 
     public synchronized void scrapeData() throws IOException {
@@ -69,12 +72,12 @@ public class cascadeFundingProvider {
             try {
                 WebElement summaryP = card.findElement(By.xpath(".//h4[text()='Summary']/following-sibling::p"));
                 data.put("summary", summaryP.getText());
-            } catch (Exception ignored) {}
+            } catch (NoSuchElementException ignored) {}
 
             try {
                 WebElement closesP = card.findElement(By.xpath(".//h4[text()='Closes']/following-sibling::p"));
                 data.put("deadlineDate", closesP.getText());
-            } catch (Exception ignored) {}
+            } catch (NoSuchElementException ignored) {}
 
             data.put("technology", extractTagTexts(card, ".//h4[text()='Technology']/following-sibling::ul/li/a"));
             data.put("domains", extractTagTexts(card, ".//h4[text()='Domains']/following-sibling::ul/li/a"));
@@ -84,9 +87,11 @@ public class cascadeFundingProvider {
                 WebElement fundingP = card.findElement(By.xpath(".//h4[text()='Max funding per project']/following-sibling::p"));
                 String fundingText = fundingP.getText().replaceAll("[^\\d,]", "").replace(",", ".");
                 data.put("maxFunding", fundingText);
-            } catch (Exception ignored) {}
+            } catch (NoSuchElementException ignored) {}
             results.add(data);
-            log.info("Processed card: {}", formattedId);
+            if (log.isInfoEnabled()) {
+                log.info("Processed card: {}", formattedId);
+            }
         }
         fetchDescriptionsInParallel(results);
         saveRawLocally(results, "cascadeFundingRawData.json");
@@ -104,7 +109,7 @@ public class cascadeFundingProvider {
             for (WebElement tag : tags) {
                 texts.add(tag.getText());
             }
-        } catch (Exception ignored) {}
+        } catch (NoSuchElementException ignored) {}
         return texts;
     }
 
@@ -119,7 +124,9 @@ public class cascadeFundingProvider {
             futures.add(executor.submit(() -> {
                 int index = counter.incrementAndGet();
                 String id = (String) item.get("id");
-                log.info("[{}/{}] Fetching details for: {}", index, total, id);
+                if (log.isInfoEnabled()) {
+                    log.info("[{}/{}] Fetching details for: {}", index, total, id);
+                }
 
                 WebDriver localDriver = driverManager.createParallelChromeDriver();
 
@@ -140,8 +147,10 @@ public class cascadeFundingProvider {
 
                     item.put("description", description);
 
-                } catch (Exception e) {
-                    log.warn("Failed to fetch details for {}: {}", id, e.getMessage());
+                } catch (WebDriverException e) {
+                    if (log.isWarnEnabled()) {
+                        log.warn("Failed to fetch details for {}: {}", id, e.getMessage());
+                    }
                     item.put("description", "none");
 
                 } finally {
@@ -153,8 +162,13 @@ public class cascadeFundingProvider {
         for (Future<?> future : futures) {
             try {
                 future.get();
-            } catch (Exception e) {
-                log.warn("Error in parallel processing: {}", e.getMessage());
+            } catch (ExecutionException | InterruptedException e) {
+                if (e instanceof InterruptedException) {
+                    Thread.currentThread().interrupt();
+                }
+                if (log.isWarnEnabled()) {
+                    log.warn("Error in parallel processing: {}", e.getMessage());
+                }
             }
         }
         executor.shutdown();
@@ -167,7 +181,9 @@ public class cascadeFundingProvider {
             executor.shutdownNow();
             Thread.currentThread().interrupt();
         }
-        log.info("All detail scraping threads complete.");
+        if (log.isInfoEnabled()) {
+            log.info("All detail scraping threads complete.");
+        }
     }
     private String preserveFormattingWithHTML(WebDriver driver, WebElement element) {
         try {
@@ -201,8 +217,10 @@ public class cascadeFundingProvider {
 
             return cleanText;
 
-        } catch (Exception e) {
-            log.warn("Failed to extract formatted HTML, falling back to getText(): {}", e.getMessage());
+        } catch (WebDriverException e) {
+            if (log.isWarnEnabled()) {
+                log.warn("Failed to extract formatted HTML, falling back to getText(): {}", e.getMessage());
+            }
             return element.getText().trim();
         }
     }
@@ -233,7 +251,9 @@ public class cascadeFundingProvider {
         try (FileWriter writer = new FileWriter(outputPath)) {
             writer.write(mapper.writeValueAsString(dataList));
         }
-        log.info("Saved scraped data to: {}", outputPath);
+        if (log.isInfoEnabled()) {
+            log.info("Saved scraped data to: {}", outputPath);
+        }
     }
 
     public void saveRawToMongo(List<Map<String, Object>> results, String provider) {
@@ -247,14 +267,16 @@ public class cascadeFundingProvider {
         if (!documents.isEmpty()) {
             mongoTemplate.getCollection(COLLECTION_RAW).insertMany(documents);
         }
-        log.info("Saved {} raw items to MongoDB for provider: {}", documents.size(), provider);
+        if (log.isInfoEnabled()) {
+            log.info("Saved {} raw items to MongoDB for provider: {}", documents.size(), provider);
+        }
     }
 
     private void saveFilteredToMongo(List<Map<String, Object>> results) {
         List<Listing> listings = new ArrayList<>();
         List<String> allPossibleIds = results.stream().map(data -> SOURCE + ":" + data.get("id") + ":" + STATUS_OPEN).toList();
 
-        Set<String> existingIdentifiers = new HashSet<>(listingRepository.findAllBySourceIdentifierIn(allPossibleIds)
+        Set<String> existingIDS = new HashSet<>(listingRepository.findAllBySourceIdentifierIn(allPossibleIds)
                 .stream()
                 .map(Listing::getSourceIdentifier)
                 .toList());
@@ -264,8 +286,10 @@ public class cascadeFundingProvider {
             if (identifier == null) continue;
 
             String sourceIdentifier = SOURCE + ":" + identifier + ":" + STATUS_OPEN;
-            if (existingIdentifiers.contains(sourceIdentifier)) {
-                log.warn("Duplicate listing found: {}", sourceIdentifier);
+            if (existingIDS.contains(sourceIdentifier)) {
+                if (log.isWarnEnabled()) {
+                    log.warn("Duplicate listing found: {}", sourceIdentifier);
+                }
                 continue;
             }
 
@@ -305,7 +329,9 @@ public class cascadeFundingProvider {
             listings.add(listing);
         }
         listingRepository.saveAll(listings);
-        log.info("Saved {} filtered listings to MongoDB.", listings.size());
+        if (log.isInfoEnabled()) {
+            log.info("Saved {} filtered listings to MongoDB.", listings.size());
+        }
     }
 
     public void saveKeywordsToLocalFile(List<Map<String, Object>> dataList) throws IOException {
@@ -339,6 +365,8 @@ public class cascadeFundingProvider {
         Collections.sort(sortedKeywords);
         Files.write(path, sortedKeywords);
 
-        log.info("Saved {} keywords to: {}", sortedKeywords.size(), filePath);
+        if (log.isInfoEnabled()) {
+            log.info("Saved {} keywords to: {}", sortedKeywords.size(), filePath);
+        }
     }
 }
