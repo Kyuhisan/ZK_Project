@@ -42,21 +42,37 @@ jobs:
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
 
-      - name: Build and test backend
+      - name: Build and analyze backend
         working-directory: ./02_Backend
-        run: mvn -B clean verify
-
-      - name: SonarCloud Scan
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          mvn -B -f 02_Backend/pom.xml sonar:sonar \
+          mvn -B clean verify sonar:sonar \
             -Dsonar.projectKey=Kyuhisan_ZK_Project \
             -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }} \
             -Dsonar.host.url=https://sonarcloud.io \
-            -Dsonar.sources=02_Backend/src/main,01_Frontend/src \
-            -Dsonar.tests=02_Backend/src/test \
-            -Dsonar.java.binaries=02_Backend/target/classes \
             -Dsonar.qualitygate.wait=true \
             -Dsonar.qualitygate.timeout=300
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: './01_Frontend/package-lock.json'
+
+      - name: Install frontend dependencies
+        working-directory: ./01_Frontend
+        run: npm ci
+
+      - name: Analyze frontend with SonarCloud
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          projectBaseDir: 01_Frontend
+          args: >
+            -Dsonar.projectKey=Kyuhisan_ZK_Project
+            -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}

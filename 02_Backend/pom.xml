@@ -31,8 +31,6 @@
 		<sonar.organization>kyuhisan</sonar.organization>
 		<sonar.host.url>https://sonarcloud.io</sonar.host.url>
 		<sonar.projectKey>Kyuhisan_ZK_Project</sonar.projectKey>
-		<sonar.sources>src/main</sonar.sources>
-		<sonar.tests>src/test</sonar.tests>
 		<sonar.coverage.jacoco.xmlReportPaths>target/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
 		<sonar.java.binaries>target/classes</sonar.java.binaries>
 	</properties>
