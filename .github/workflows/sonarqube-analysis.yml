@@ -11,8 +11,8 @@ on:
       - develop
 
 jobs:
-  sonarqube-backend:
-    name: SonarQube Backend Analysis
+  sonarqube-analysis:
+    name: SonarQube Code Analysis
     runs-on: ubuntu-latest
 
     steps:
@@ -42,74 +42,21 @@ jobs:
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
 
-      - name: Build and analyze backend
+      - name: Build and test backend
         working-directory: ./02_Backend
+        run: mvn -B clean verify
+
+      - name: SonarCloud Scan
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
-            -Dsonar.projectKey=Kyuhisan_ZK_Project_Backend \
+          mvn -B -f 02_Backend/pom.xml sonar:sonar \
+            -Dsonar.projectKey=Kyuhisan_ZK_Project \
             -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }} \
             -Dsonar.host.url=https://sonarcloud.io \
+            -Dsonar.sources=02_Backend/src/main,01_Frontend/src \
+            -Dsonar.tests=02_Backend/src/test \
+            -Dsonar.java.binaries=02_Backend/target/classes \
             -Dsonar.qualitygate.wait=true \
             -Dsonar.qualitygate.timeout=300
-
-  sonarqube-frontend:
-    name: SonarQube Frontend Analysis
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: './01_Frontend/package-lock.json'
-
-      - name: Install dependencies
-        working-directory: ./01_Frontend
-        run: npm ci
-
-      - name: Run tests (optional, for coverage)
-        working-directory: ./01_Frontend
-        run: npm run test -- --coverage --watchAll=false || true
-        continue-on-error: true
-
-      - name: SonarCloud Scan Frontend
-        uses: SonarSource/sonarcloud-github-action@master
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        with:
-          projectBaseDir: 01_Frontend
-          args: >
-            -Dsonar.projectKey=Kyuhisan_ZK_Project_Frontend
-            -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
-            -Dsonar.qualitygate.wait=true
-            -Dsonar.qualitygate.timeout=300
-
-  quality-gate-status:
-    name: Overall Quality Gate Status
-    runs-on: ubuntu-latest
-    needs: [sonarqube-backend, sonarqube-frontend]
-    if: always()
-
-    steps:
-      - name: Check Quality Gates Status
-        run: |
-          echo "Backend Status: ${{ needs.sonarqube-backend.result }}"
-          echo "Frontend Status: ${{ needs.sonarqube-frontend.result }}"
-
-          if [ "${{ needs.sonarqube-backend.result }}" != "success" ] || [ "${{ needs.sonarqube-frontend.result }}" != "success" ]; then
-            echo "::error::❌ One or more SonarQube quality gates failed!"
-            echo "::error::Please check the logs above and fix the issues before merging."
-            exit 1
-          fi
-
-          echo "✅ All quality gates passed! Code quality checks successful."
