@@ -51,16 +51,9 @@ jobs:
           mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
             -Dsonar.projectKey=Kyuhisan_ZK_Project_Backend \
             -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }} \
-            -Dsonar.host.url=https://sonarcloud.io
-
-      - name: SonarQube Quality Gate check
-        id: sonarqube-quality-gate-check-backend
-        uses: sonarsource/sonarqube-quality-gate-action@master
-        timeout-minutes: 5
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        with:
-          scanMetadataReportFile: 02_Backend/target/sonar/report-task.txt
+            -Dsonar.host.url=https://sonarcloud.io \
+            -Dsonar.qualitygate.wait=true \
+            -Dsonar.qualitygate.timeout=300
 
   sonarqube-frontend:
     name: SonarQube Frontend Analysis
@@ -98,27 +91,25 @@ jobs:
           args: >
             -Dsonar.projectKey=Kyuhisan_ZK_Project_Frontend
             -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
-
-      - name: SonarQube Quality Gate check
-        id: sonarqube-quality-gate-check-frontend
-        uses: sonarsource/sonarqube-quality-gate-action@master
-        timeout-minutes: 5
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        with:
-          scanMetadataReportFile: 01_Frontend/.scannerwork/report-task.txt
+            -Dsonar.qualitygate.wait=true
+            -Dsonar.qualitygate.timeout=300
 
   quality-gate-status:
-    name: Check Overall Quality Gate
+    name: Overall Quality Gate Status
     runs-on: ubuntu-latest
     needs: [sonarqube-backend, sonarqube-frontend]
     if: always()
 
     steps:
-      - name: Check Quality Gates
+      - name: Check Quality Gates Status
         run: |
+          echo "Backend Status: ${{ needs.sonarqube-backend.result }}"
+          echo "Frontend Status: ${{ needs.sonarqube-frontend.result }}"
+
           if [ "${{ needs.sonarqube-backend.result }}" != "success" ] || [ "${{ needs.sonarqube-frontend.result }}" != "success" ]; then
-            echo "::error::One or more SonarQube quality gates failed!"
+            echo "::error::❌ One or more SonarQube quality gates failed!"
+            echo "::error::Please check the logs above and fix the issues before merging."
             exit 1
           fi
-          echo "All quality gates passed!"
+
+          echo "✅ All quality gates passed! Code quality checks successful."
