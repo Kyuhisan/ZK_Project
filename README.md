@@ -1,4 +1,8 @@
 # Project Instructions:
+## Latest Version:
+- smartserach-frontend:12
+- smartsearch-backend:12
+
 ## Building Backend:
 - Clean Maven lifecycle and Package into JAR.
 - Run ```docker build -t <dockerHubName>/<imageName>-backend:<version> .```
