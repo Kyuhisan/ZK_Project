@@ -43,7 +43,7 @@
 - Run frontend with ```docker run -d -p <Frontend Port>:80 -e API_URL="Backend IP":<Backend Port>" matickuhar/smartsearch-frontend:5.0``` 
 
 ## Resources:
-Official docker-hub repositories and used dependencies.
+Official docker-hub repositories and used dependencies...
 - https://hub.docker.com/r/matickuhar/smartsearch-backend
 - https://hub.docker.com/r/matickuhar/smartsearch-frontend
 - https://www.selenium.dev/documentation/selenium_manager
