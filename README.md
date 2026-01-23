@@ -5,12 +5,12 @@
 
 ## Building Backend:
 - Clean Maven lifecycle and Package into JAR.
-- Run ```docker build -t <dockerHubName>/<imageName>-backend:<version> .```
-- Run ```docker push <dockerHubName>/<imageName>-backend:<version>```
+- Run ```docker build -t matickuhar1999/smartsearch-backend:12.0 .```
+- Run ```docker push matickuhar1999/smartsearch-backend:12.0```
 
 ## Building Frontend:
-- Run ```docker build -t <dockerHubName>/<imageName>-frontend:<version> .```
-- Run ```docker push <dockerHubName>/<imageName>-frontend:<version>```
+- Run ```docker build -t matickuhar1999/smartsearch-frontend:12.0 .```
+- Run ```docker push matickuhar1999/smartsearch-frontend:12.0```
 
 ## Running Backend:
 - Download ```.env``` file from shared directory (OneDrive).
@@ -19,7 +19,7 @@
 - Run ```docker-compose up -d``` inside ```/02_Backend/``` directory.
 
 ## Running Frontend:
-- Run ```docker run -d -p <port>:80 -e API_URL="<Backend IP>:<PORT>" <dockerHubName>/<imageName>-frontend:<version>``` inside ```/01_Frontend/``` directory.
+- Run ```docker run -d -p <port>:80 -e API_URL="<Backend IP>:<PORT>" matickuhar1999/smartsearch-frontend:12.0``` inside ```/01_Frontend/``` directory.
 
 ## Establishing Vagrant environment:
 - Open administrator powershell or other form of terminal.
@@ -33,7 +33,7 @@
 - Enter vagrant environment using ```vagrant ssh```.
 - Use ```/Shared``` directory to forward ```.env and docker-compose.yml``` files or if needed entire git repository.
 - Run SmartSearch Backend container using ```docker-compose up -d```.
-- Run SmartSearch Frontend container using ```docker run -d -p <Frontend Port>:80 -e API_URL="Vagrant IP":<Backend Port>" matickuhar/smartsearch-frontend:<version>``` 
+- Run SmartSearch Frontend container using ```docker run -d -p <Frontend Port>:80 -e API_URL="Vagrant IP":<Backend Port>" matickuhar/smartsearch-frontend:12.0``` 
 - To check on which IP Vagrant is running use ```ip addr show```.
 - When done, environement can be stopped using ```vagrant halt``` or completely removed using ```Vagrant destroy```.
 
